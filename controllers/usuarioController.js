@@ -77,10 +77,11 @@ const autenticar = async (req, res) => {
 
     //almacenar en un cookie
     return res.cookie('_token', token, {
-        
+
         httpOnly: true, // para no acceder a las cookies en js
-        secure: true,
-        sameSite: true
+        //expires: 9000 // cuanto tiempo en seg va a expirar el cookie
+        // secure: true,
+        // sameSite: true
     }).redirect('/propiedades')
 }
 

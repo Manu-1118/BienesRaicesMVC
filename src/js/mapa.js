@@ -1,7 +1,7 @@
 (function () {
 
-    const lat = 12.1493183;
-    const lng = -86.2468325;
+    const lat = document.querySelector('#lat').value || 12.1493183;
+    const lng = document.querySelector('#lng').value || -86.2468325;
     const mapa = L.map('mapa').setView([lat, lng], 16);
     let marker;
 
@@ -28,6 +28,12 @@
         geocodeService.reverse().latlng(posicion, 13).run(function (error, resultado) {
             console.log(resultado)
             marker.bindPopup(resultado.address.LongLabel)
+
+            // Llenar los campos
+            document.querySelector('.calle').textContent = resultado?.address?.Address ?? ''
+            document.querySelector('#calle').value = resultado.address.Address ?? ''
+            document.querySelector('#lat').value = resultado.latlng.lat ?? ''
+            document.querySelector('#lng').value = resultado.latlng.lng ?? ''
         })
 
     })

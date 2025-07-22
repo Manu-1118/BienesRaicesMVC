@@ -3,3 +3,7 @@ node_modules/
 
 #ignorar las variables de entorno
 .env
+
+#ignorar carpeta con imagenes de las propiedades
+public/img/
+public/uploads/
