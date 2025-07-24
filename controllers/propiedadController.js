@@ -1,29 +1,64 @@
 import { validationResult } from 'express-validator'
-// import bcrypt from 'bcrypt'
+import { unlink } from 'node:fs/promises'
 
 import { Precio, Categoria, Propiedad } from '../models/index.js'
 
+
 const admin = async (req, res) => {
 
-    const { id } = req.usuario
+    // leer QueryString y validar con regex
+    const { pagina: paginaActual } = req.query
+    const expresion = /^[1-9]$/
 
-    console.log(id)
+    if (!expresion.test(paginaActual)) {
+        return res.redirect('/propiedades?pagina=1')
+    }
 
-    const propiedades = await Propiedad.findAll({
-        where: {
-            fk_id_usuario: id
-        },
-        include: [
-            { model: Categoria, as: 'categoria' },
-            { model: Precio, as: 'precio' }
-        ]
-    })
+    try {
 
-    res.render('propiedades/admin', {
+        // mostrar las propiedades
+        const { id } = req.usuario
 
-        pagina: 'Mis Propiedades',
-        propiedades
-    })
+        // limites y offsets para el paginador
+        const limit = 3 // max de elementos por pagina
+        const offset = ((paginaActual * limit) - limit) // para saltar los registros anteriores
+
+        const [propiedades, total] = await Promise.all([
+            
+            Propiedad.findAll({
+                limit, // poner limite de elementos en la consulta
+                offset, // brincar cantidad de elementos dentro de la consulta
+                where: {
+                    fk_id_usuario: id
+                },
+                include: [
+                    { model: Categoria, as: 'categoria' },
+                    { model: Precio, as: 'precio' }
+                ]
+            }),
+            // contar cuantas propiedades hay
+            Propiedad.count({
+                where: {
+                    fk_id_usuario: id
+                }
+            })
+        ])
+
+        res.render('propiedades/admin', {
+
+            pagina: 'Mis Propiedades',
+            propiedades,
+            csrfToken: req.csrfToken(),
+            paginas: Math.ceil(total / limit), // calcular botones del paginador
+            paginaActual: Number(paginaActual), // convertir un '' en int
+            total,
+            offset,
+            limit
+        })
+
+    } catch (error) {
+        console.log(error)
+    }
 }
 
 // Formulario para crear una nueva propiedad
@@ -260,6 +295,54 @@ const guardarCambios = async (req, res) => {
     }
 }
 
+const eliminar = async (req, res) => {
+
+    const { id } = req.params
+    // validar que la propiedad exista
+    const propiedad = await Propiedad.findByPk(id)
+
+    if (!propiedad) {
+        return res.redirect('/propiedades')
+    }
+
+    // revisar que el visitante es el creador
+    if (propiedad.fk_id_usuario.toString() !== req.usuario.id.toString()) {
+        return res.redirect('/propiedades')
+    }
+
+    // eliminar la propiedad
+    await propiedad.destroy()
+
+    // eliminar la imagen asociada
+    await unlink(`public/uploads/${propiedad.imagen}`)
+
+    res.redirect('/propiedades')
+}
+
+// Mostrar una propiedad
+const mostrarPropiedad = async (req, res) => {
+
+    const { id } = req.params
+
+    // comprobar que la propiedad exista
+    const propiedad = await Propiedad.findByPk(id,
+        {
+            include: [
+                { model: Categoria, as: 'categoria' },
+                { model: Precio, as: 'precio' }
+            ]
+        })
+
+    if (!propiedad) {
+        return res.redirect('/404')
+    }
+    // console.log('Mostrando detalles de la propiedad')
+    res.render('propiedades/mostrar', {
+        propiedad,
+        pagina: propiedad.titulo
+    })
+}
+
 export {
     admin,
     crear,
@@ -267,5 +350,7 @@ export {
     agregarImagen,
     almacenarImagen,
     editar,
-    guardarCambios
+    guardarCambios,
+    eliminar,
+    mostrarPropiedad
 }
